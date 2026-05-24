@@ -133,7 +133,8 @@
             const targetCurrency = targetSelect.options[targetSelect.selectedIndex].getAttribute('data-currency');
 
             // ⚠️ CRITICAL CONFIGURATION: Ensure this matches your running localhost port number exactly!
-            const localApiUrl = 'https://localhost:7064/api/remittance/calculate';
+            // 🌍 Swapped out localhost for your live production Render URL!
+            const localApiUrl = 'https://remittance-calculator-h8y8.onrender.com/api/remittance/calculate';
 
             try {
                 const response = await fetch(localApiUrl, {
