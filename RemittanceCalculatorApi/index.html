@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transparent Remittance Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-gray-800 rounded-2xl shadow-xl border border-gray-700 p-6">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-emerald-400">ExpatPay Aware</h1>
+            <p class="text-gray-400 text-sm mt-1">See hidden bank fees & local taxes instantly</p>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Send Amount</label>
+                <div class="relative">
+                    <input type="number" id="amountInput" value="2500" class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white font-medium focus:outline-none focus:border-emerald-500">
+                    <span id="sourceCurrencyLabel" class="absolute right-4 top-3 text-gray-400 font-bold">AED</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">From Country</label>
+                    <select id="sourceCountry" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">To Country</label>
+                    <select id="targetCountry" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500"></select>
+                </div>
+            </div>
+
+            <button id="calculateBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-gray-900 font-bold py-3.5 rounded-lg transition-colors shadow-lg cursor-pointer">
+                Calculate Real Payout
+            </button>
+        </div>
+
+        <div id="resultsPanel" class="hidden mt-6 pt-6 border-t border-gray-700 space-y-4">
+            <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-700/50">
+                <p class="text-xs text-gray-400 uppercase tracking-wider">Estimated Money Family Receives</p>
+                <p class="text-3xl font-black text-emerald-400 mt-1" id="netReceivedOutput">₹0.00</p>
+            </div>
+
+            <div class="text-sm space-y-2 text-gray-300 px-1">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Interbank Market Rate:</span>
+                    <span id="marketRateOutput" class="font-medium">0.00</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Agent Exchange Rate:</span>
+                    <span id="agentRateOutput" class="font-medium text-amber-400">0.00</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Upfront Agent Fee:</span>
+                    <span id="upfrontFeeOutput" class="text-red-400 font-medium">0.00</span>
+                </div>
+                <div class="flex justify-between border-b border-gray-700/50 pb-2">
+                    <span class="text-gray-400">Hidden Rate Markup Loss:</span>
+                    <span id="hiddenLossOutput" class="text-red-400 font-medium">0.00</span>
+                </div>
+            </div>
+
+            <div class="bg-emerald-950/40 border border-emerald-800/60 p-4 rounded-xl text-center">
+                <p class="text-xs text-emerald-300 font-medium">⚠️ Banks are ripping you off with hidden markups.</p>
+                <a href="https://wise.com" target="_blank" class="inline-block w-full bg-emerald-400 hover:bg-emerald-300 text-gray-950 font-bold text-sm py-2.5 rounded-md mt-2.5 transition-all">
+                    Send via Wise & Save Fees →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sourceSelect = document.getElementById('sourceCountry');
+        const targetSelect = document.getElementById('targetCountry');
+
+        // Dynamically shift the text label suffix currency denomination shorthand indicator inside the input
+        sourceSelect.addEventListener('change', (e) => {
+            const currency = e.target.options[e.target.selectedIndex].getAttribute('data-currency');
+            document.getElementById('sourceCurrencyLabel').textContent = currency;
+        });
+
+        // 🌍 Fetch and build out all sovereign global options via unauthenticated API on startup loop
+        async function loadGlobalCountries() {
+            try {
+                const response = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,currencies,flag');
+                const data = await response.json();
+
+                // Clear out anomalies and sort everything alphabetically out of directory dictionary array
+                const lists = data
+                    .filter(c => c.currencies && Object.keys(c.currencies).length > 0)
+                    .map(c => ({
+                        code: c.cca2,
+                        name: c.name.common,
+                        flag: c.flag || '🌐',
+                        currency: Object.keys(c.currencies)[0]
+                    }))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                // Append newly structured nodes cleanly to select objects element lists
+                lists.forEach(item => {
+                    const optSrc = new Option(`${item.flag} ${item.name} (${item.currency})`, item.code);
+                    optSrc.setAttribute('data-currency', item.currency);
+
+                    const optTrg = optSrc.cloneNode(true);
+                    sourceSelect.add(optSrc);
+                    targetSelect.add(optTrg);
+                });
+
+                // Establish high-volume standard default profiles on initial bootstrap load sequence
+                sourceSelect.value = "AE";
+                targetSelect.value = "IN";
+                sourceSelect.dispatchEvent(new Event('change'));
+
+            } catch (err) {
+                alert("Error compiling directory definitions registry: " + err.message);
+            }
+        }
+
+        // Trigger dynamic listing collection on immediate engine load lifecycle loop
+        loadGlobalCountries();
+
+        // Handle Click Event Form Actions
+        document.getElementById('calculateBtn').addEventListener('click', async () => {
+            const amount = document.getElementById('amountInput').value;
+            const sourceCountry = sourceSelect.value;
+            const targetCountry = targetSelect.value;
+
+            const sourceCurrency = sourceSelect.options[sourceSelect.selectedIndex].getAttribute('data-currency');
+            const targetCurrency = targetSelect.options[targetSelect.selectedIndex].getAttribute('data-currency');
+
+            // ⚠️ CRITICAL CONFIGURATION: Ensure this matches your running localhost port number exactly!
+            const localApiUrl = 'https://localhost:7064/api/remittance/calculate';
+
+            try {
+                const response = await fetch(localApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourceCountry, targetCountry, sourceCurrency, targetCurrency, amount: parseFloat(amount) })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'The remote calculation execution pipeline failed.');
+
+                // Output mapped computations back to screen displays elements
+                document.getElementById('netReceivedOutput').textContent = `${targetCurrency} ${data.finalNetReceivedTarget.toLocaleString()}`;
+                document.getElementById('marketRateOutput').textContent = `1 ${sourceCurrency} = ${data.baseMidMarketRate} ${targetCurrency}`;
+                document.getElementById('agentRateOutput').textContent = `1 ${sourceCurrency} = ${data.consumerExchangeRate} ${targetCurrency}`;
+                document.getElementById('upfrontFeeOutput').textContent = `${data.upfrontFeesSource} ${sourceCurrency}`;
+                document.getElementById('hiddenLossOutput').textContent = `${data.estimatedHiddenMarkupLossTarget} ${targetCurrency}`;
+
+                // Pop panel visual interface into view state rules
+                document.getElementById('resultsPanel').classList.remove('hidden');
+            } catch (error) {
+                alert('API Computational Error: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
